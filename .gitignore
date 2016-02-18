@@ -107,3 +107,21 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+*.pydevproject
+.project
+.metadata/**
+.metadata/*
+.metadata/**/**
+bin/**
+tmp/**
+tmp/**/*
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.classpath
+.settings/
+.loadpath
+.pydevinfo
+.settings
