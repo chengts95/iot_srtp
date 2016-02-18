@@ -125,3 +125,4 @@ local.properties
 .loadpath
 .pydevinfo
 .settings
+srtp/.metadata/*
