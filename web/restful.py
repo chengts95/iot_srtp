@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import tornado.web
 import tornado.httpserver
 import tornado.ioloop
@@ -7,7 +9,7 @@ import json
 import redis
 import os
 import app_global
-from traitlets.config.application import catch_config_error
+
 
 
 cl = []
@@ -63,7 +65,7 @@ class ApiHandler(tornado.web.RequestHandler):
         name=uid+"."+value
         payload = app_global.redisClient.get(name)
         if payload is not None:
-            data = {"id": id, "value" : payload.decode()}
+            data = {"id": uid, "value" : payload.decode()}
         else:
             data={"error":name + " not found"}
         self.write(data)
@@ -96,7 +98,7 @@ class Application(tornado.web.Application):
 
     def __init__(self):
         handlers = [
-             (r'/', realtimeHandler),
+             (r'/monitor', realtimeHandler),
              (r'/ws', WebSocketHandler),
              (r'/api', ApiHandler),
 
