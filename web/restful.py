@@ -10,15 +10,49 @@ import redis
 import os
 import app_global
 
-
+import tornado.autoreload
 
 cl = []
+class BaseHandler(tornado.web.RequestHandler):
+    def get_current_user(self):
+        return self.get_secure_cookie("user")
 
-class IndexHandler(tornado.web.RequestHandler):
+
+class IndexHandler(BaseHandler):
+    @tornado.web.authenticated
     def get(self):
-        self.render("index.html")
+        self.render('index.html',title="dashborad", user=self.current_user)
 
 
+class LoginHandler(BaseHandler):
+    @tornado.gen.coroutine
+    def get(self):
+        incorrect = self.get_secure_cookie("incorrect")
+        if incorrect and int(incorrect) > 25:
+            self.write('<center>blocked</center>')
+            return
+        self.render('pages/login.html')
+
+    @tornado.gen.coroutine
+    def post(self):
+        username = tornado.escape.xhtml_escape(self.get_argument("username"))
+        password = tornado.escape.xhtml_escape(self.get_argument("password"))
+        if "ID002" == username and "123456" == password:
+            self.set_secure_cookie("user", self.get_argument("username"))
+            self.set_secure_cookie("incorrect", "0")
+            self.redirect("/")
+
+        else:
+            incorrect = self.get_secure_cookie("incorrect")
+            if not incorrect:
+                incorrect = 0
+            self.set_secure_cookie("incorrect", str(int(incorrect)+1))
+            self.write('<center>Something Wrong With Your Data <a href="/">Go Home</a></center>')
+
+class LogoutHandler(BaseHandler):
+    def get(self):
+        self.clear_cookie("user")
+        self.redirect(self.get_argument("next", "/"))
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
@@ -77,17 +111,20 @@ class ApiHandler(tornado.web.RequestHandler):
     def post(self):
         pass
 
-class realtimeHandler(tornado.web.RequestHandler):
-    @tornado.web.asynchronous
+class realtimeHandler(BaseHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
     def get(self, *args):
         taggroup=self.get_argument("tag")
 
         title=u'在线监测'
-
-        groupname=app_global.redisClient.get(taggroup+".NAME").decode()
-        tagnames=self.get_tags(taggroup)
-
-        self.render("test2.html",svg="/static/svg/bpr.min.svg",groupname=groupname,title=title,tagnames=tagnames)
+        groupname=app_global.redisClient.get(taggroup+".NAME")
+        if groupname is not None:
+            groupname=groupname.decode()
+            tagnames=self.get_tags(taggroup)
+            self.render("test2.html",svg="/static/svg/bpr.min.svg",groupname=groupname,title=title,tagnames=tagnames)
+        else:
+            self.write('<center>The group is not esxit!<a href="/">Go Home</a></center>')
 
     def get_tags(self,taggroup):
 
@@ -101,11 +138,15 @@ class Application(tornado.web.Application):
              (r'/monitor', realtimeHandler),
              (r'/ws', WebSocketHandler),
              (r'/api', ApiHandler),
-
+            (r'/', IndexHandler),
+            (r'/logout', LogoutHandler),
+            (r'/login', LoginHandler),
         ]
         settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
+            cookie_secret="61oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
+            login_url="/login",
         )
 
         tornado.web.Application.__init__(self, handlers, **settings)
